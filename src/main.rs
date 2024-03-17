@@ -2,6 +2,9 @@
 use xcb::{x};
 // we need to import the `Xid` trait for the `resource_id` call down there.
 use xcb::{Xid};
+// use xcb::VoidCookieChecked;
+
+mod geometry;
 
 // Many xcb functions return a `xcb::Result` or compatible result.
 fn main() -> xcb::Result<()> {
@@ -11,6 +14,32 @@ fn main() -> xcb::Result<()> {
 
     return create_win(&name.as_bytes());
 }
+
+// fn draw_circle(connection: &xcb::Connection ,window: x::Window, g_context: x::Gcontext, x_offset: i16, y_offset: i16, radius: i32, border_width: f32) -> VoidCookieChecked {
+//     let mut pixels: Vec<x::Point> = vec![];
+//     // draw circle
+//     let outer_radius: f32 = radius as f32 + border_width;
+//     let in_sq: f32 = radius.pow(2) as f32;
+//     let out_sq: f32 = outer_radius.powf(2.0);
+//     let mut distance: f32;
+//     for x in 1..2*(outer_radius as i16) {
+//         for y in 1.. 2*(outer_radius as i16) {
+//             distance = (x as f32 - outer_radius).powf(2.0) + (y as f32 - outer_radius).powf(2.0);
+//
+//             if distance > in_sq && distance < out_sq {
+//                 pixels.push(x::Point{x: x+x_offset, y: y+y_offset});
+//             }
+//         }
+//     }
+//
+//     let addition = connection.send_request_checked(&x::PolyPoint {
+//         coordinate_mode: x::CoordMode::Origin,
+//         drawable: x::Drawable::Window(window),
+//         gc: g_context,
+//         points: &pixels //.collect::<Vec<x::Point>>().as_slice(),
+//     });
+//     return addition;
+// }
 
 fn input(text: &str) -> String{
     println!("{text}");
@@ -33,6 +62,10 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
     // Generate an `Xid` for the client window.
     // The type inference is needed here.
     let window: x::Window = conn.generate_id();
+    let buffer: x::Pixmap = conn.generate_id();
+    let _gc: x::Gc = x::Gc::Foreground(screen.white_pixel());
+    // gc = x::Gc::Function(x::Gx::And);
+    let g_context: x::Gcontext = conn.generate_id();
 
     // We can now create a window. For this we pass a `Request`
     // object to the `send_request_checked` method. The method
@@ -54,12 +87,33 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
             x::Cw::EventMask(x::EventMask::EXPOSURE | x::EventMask::KEY_PRESS)
         ],
     });
-    // We now check if the window creation worked.
-    // A cookie can't be cloned; it is moved to the function.
     conn.check_request(cookie)?;
 
+    let _buff_cookie = conn.send_request_checked(&x::CreatePixmap {
+        depth: 0,
+        pid: buffer,
+        drawable: x::Drawable::Pixmap(buffer),
+        width: 16 * scale,
+        height: 10 * scale,
+    });
+
+    let gc_cookie = conn.send_request_checked(&x::CreateGc {
+        cid: g_context,
+        drawable: x::Drawable::Window(window),
+        value_list: &[
+            x::Gc::Foreground(screen.white_pixel()),
+            // x::Gc::Background(screen.white_pixel()),
+            x::Gc::GraphicsExposures(false),
+        ],
+    });
+    conn.check_request(gc_cookie)?;
+
+    // We now check if the window creation worked.
+    // A cookie can't be cloned; it is moved to the function.
+    // conn.check_request(cookie)?;
+
     // Let's change the window title
-    let cookie = conn.send_request_checked(&x::ChangeProperty {
+    let _cookie = conn.send_request_checked(&x::ChangeProperty {
         mode: x::PropMode::Replace,
         window,
         property: x::ATOM_WM_NAME,
@@ -67,7 +121,7 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
         data: name,
     });
     // And check for success again
-    conn.check_request(cookie)?;
+    conn.check_request(_cookie)?;
 
     // We now show ("map" in X terminology) the window.
     // This time we do not check for success, so we discard the cookie.
@@ -75,7 +129,6 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
         window,
     });
 
-    // We need a few atoms for our application.
     // We send a few requests in a row and wait for the replies after.
     let (wm_protocols, wm_del_window, wm_state, wm_state_maxv, wm_state_maxh) = {
         let cookies = (
@@ -125,9 +178,26 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
     conn.flush()?;
 
     let mut maximized = false;
-
+    
+    // let mut pos:i16 = 0;
     // We enter the main event loop
     loop {
+        
+        geometry::Circle{
+            connection: &conn,
+            window: window,
+            gc: g_context,
+            x: 50,
+            y: 200,
+            radius: 300,
+            thickness: 4.0
+        }.draw();
+        // draw my circles
+        // draw_circle(&conn, window, g_context, 0, 0, 300, 5.0);
+        // draw_circle(&conn, window, g_context, 1000, 500, 200, 20.0);
+        // draw_circle(&conn, window, g_context, 602, pos, 300, 5.0);
+        // pos = pos + 1;
+
         match conn.wait_for_event()? {
             xcb::Event::X(x::Event::KeyPress(ev)) => {
                 if ev.detail() == 0x3a {
