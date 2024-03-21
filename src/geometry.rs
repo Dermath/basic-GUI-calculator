@@ -2,6 +2,7 @@ use xcb::{x};
 // we need to import the `Xid` trait for the `resource_id` call down there.
 use xcb::VoidCookieChecked;
 
+#[derive(Clone)]
 pub struct Circle<'a> {
     pub connection: &'a xcb::Connection,
     pub window: x::Window,
@@ -29,13 +30,22 @@ impl<'a> Circle<'a> {
                 }
             }
         }
-
-        let addition = self.connection.send_request_checked(&x::PolyPoint {
-            coordinate_mode: x::CoordMode::Origin,
-            drawable: x::Drawable::Window(self.window),
-            gc: self.gc,
-            points: &pixels //.collect::<Vec<x::Point>>().as_slice(),
-        });
-        return addition;
+        return draw_pix(&pixels, self.connection, self.window, self.gc);
     }
+
+    // pub fn shift(&'a mut self, x_shift_value: i16, y_shift_value: i16) {
+    //     self.x = self.x + x_shift_value;
+    //     self.y = self.y + y_shift_value;
+    // }
 }
+
+pub fn draw_pix<'a>(pixels: &Vec<x::Point>, connection: &'a xcb::Connection, window: x::Window, gc: x::Gcontext) -> VoidCookieChecked {
+    let addition = connection.send_request_checked(&x::PolyPoint {
+        coordinate_mode: x::CoordMode::Origin,
+        drawable: x::Drawable::Window(window),
+        gc: gc,
+        points: &pixels //.collect::<Vec<x::Point>>().as_slice(),
+    });
+    return addition;
+}
+

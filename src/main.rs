@@ -5,10 +5,12 @@ use xcb::{Xid};
 // use xcb::VoidCookieChecked;
 
 mod geometry;
+mod input;
+mod logic;
 
 // Many xcb functions return a `xcb::Result` or compatible result.
 fn main() -> xcb::Result<()> {
-    let mut name = input("what would you like to name your window? ");
+    let mut name = input::input("what would you like to name your window? ");
     name.remove(name.len() - 1);
     // name[name.len()] = 0;
 
@@ -40,14 +42,6 @@ fn main() -> xcb::Result<()> {
 //     });
 //     return addition;
 // }
-
-fn input(text: &str) -> String{
-    println!("{text}");
-    
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).expect("failed to read input");
-    return input;
-}
 
 fn create_win(name: &[u8]) -> xcb::Result<()> {
     let scale: u16 = 120;
@@ -181,17 +175,53 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
     
     // let mut pos:i16 = 0;
     // We enter the main event loop
+    // let mut circle = geometry::Circle{
+    //     connection: &conn,
+    //     window: window,
+    //     gc: g_context,
+    //     x: 0,
+    //     y: 0,
+    //     radius: 50,
+    //     thickness: 10.0
+    // };
     loop {
+        // let mut pixels: Vec<x::Point> = vec![];
+        // for x in 1..500 {
+        //     for y in 1..600 {
+        //         pixels.push(x::Point{x: x, y: y});
+        //     }
+        // }
+        // let addition = geometry::draw_pix(&pixels, &conn, window, g_context);
+        // conn.check_request(addition)?;
         
-        geometry::Circle{
-            connection: &conn,
-            window: window,
-            gc: g_context,
-            x: 50,
-            y: 200,
-            radius: 300,
-            thickness: 4.0
-        }.draw();
+        // let addition = geometry::Circle{
+        //     connection: &conn,
+        //     window: window,
+        //     gc: g_context,
+        //     x: 50,
+        //     y: 200,
+        //     radius: 300,
+        //     thickness: 4.0
+        // }.draw();
+        // conn.check_request(addition)?;
+        
+        let button_size: i32 = 150;
+        let button_border: f32 = 3.0;
+        for x in 0..3+1 {
+            for y in 0..3+1 {
+                let addition = geometry::Circle{
+                    connection: &conn,
+                    window: window,
+                    gc: g_context,
+                    x: x * button_size as i16 * 2,
+                    y: y * button_size as i16 * 2,
+                    radius: button_size - button_border as i32,
+                    thickness: button_border
+                }.draw();
+                conn.check_request(addition)?;
+            }
+        }
+        
         // draw my circles
         // draw_circle(&conn, window, g_context, 0, 0, 300, 5.0);
         // draw_circle(&conn, window, g_context, 1000, 500, 200, 20.0);
