@@ -17,32 +17,6 @@ fn main() -> xcb::Result<()> {
     return create_win(&name.as_bytes());
 }
 
-// fn draw_circle(connection: &xcb::Connection ,window: x::Window, g_context: x::Gcontext, x_offset: i16, y_offset: i16, radius: i32, border_width: f32) -> VoidCookieChecked {
-//     let mut pixels: Vec<x::Point> = vec![];
-//     // draw circle
-//     let outer_radius: f32 = radius as f32 + border_width;
-//     let in_sq: f32 = radius.pow(2) as f32;
-//     let out_sq: f32 = outer_radius.powf(2.0);
-//     let mut distance: f32;
-//     for x in 1..2*(outer_radius as i16) {
-//         for y in 1.. 2*(outer_radius as i16) {
-//             distance = (x as f32 - outer_radius).powf(2.0) + (y as f32 - outer_radius).powf(2.0);
-//
-//             if distance > in_sq && distance < out_sq {
-//                 pixels.push(x::Point{x: x+x_offset, y: y+y_offset});
-//             }
-//         }
-//     }
-//
-//     let addition = connection.send_request_checked(&x::PolyPoint {
-//         coordinate_mode: x::CoordMode::Origin,
-//         drawable: x::Drawable::Window(window),
-//         gc: g_context,
-//         points: &pixels //.collect::<Vec<x::Point>>().as_slice(),
-//     });
-//     return addition;
-// }
-
 fn create_win(name: &[u8]) -> xcb::Result<()> {
     let scale: u16 = 120;
 
@@ -96,7 +70,6 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
         drawable: x::Drawable::Window(window),
         value_list: &[
             x::Gc::Foreground(screen.white_pixel()),
-            // x::Gc::Background(screen.white_pixel()),
             x::Gc::GraphicsExposures(false),
         ],
     });
@@ -173,38 +146,7 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
 
     let mut maximized = false;
     
-    // let mut pos:i16 = 0;
-    // We enter the main event loop
-    // let mut circle = geometry::Circle{
-    //     connection: &conn,
-    //     window: window,
-    //     gc: g_context,
-    //     x: 0,
-    //     y: 0,
-    //     radius: 50,
-    //     thickness: 10.0
-    // };
     loop {
-        // let mut pixels: Vec<x::Point> = vec![];
-        // for x in 1..500 {
-        //     for y in 1..600 {
-        //         pixels.push(x::Point{x: x, y: y});
-        //     }
-        // }
-        // let addition = geometry::draw_pix(&pixels, &conn, window, g_context);
-        // conn.check_request(addition)?;
-        
-        // let addition = geometry::Circle{
-        //     connection: &conn,
-        //     window: window,
-        //     gc: g_context,
-        //     x: 50,
-        //     y: 200,
-        //     radius: 300,
-        //     thickness: 4.0
-        // }.draw();
-        // conn.check_request(addition)?;
-        
         let button_size: i32 = 150;
         let button_border: f32 = 3.0;
         for x in 0..3+1 {
@@ -222,13 +164,7 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
             }
         }
         
-        // draw my circles
-        // draw_circle(&conn, window, g_context, 0, 0, 300, 5.0);
-        // draw_circle(&conn, window, g_context, 1000, 500, 200, 20.0);
-        // draw_circle(&conn, window, g_context, 602, pos, 300, 5.0);
-        // pos = pos + 1;
-
-        match conn.wait_for_event()? {
+       match conn.wait_for_event()? {
             xcb::Event::X(x::Event::KeyPress(ev)) => {
                 if ev.detail() == 0x3a {
                     // The M key was pressed
