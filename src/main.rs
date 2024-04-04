@@ -12,12 +12,12 @@ mod logic;
 fn main() -> xcb::Result<()> {
     let mut name = input::input("what would you like to name your window? ");
     name.remove(name.len() - 1);
-    // name[name.len()] = 0;
+    let num = input::input_num("how large would you like to make the radius of your circles? ");
 
-    return create_win(&name.as_bytes());
+    return create_win(&name.as_bytes(), num);
 }
 
-fn create_win(name: &[u8]) -> xcb::Result<()> {
+fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     let scale: u16 = 120;
 
     // Connect to the X server.
@@ -27,11 +27,22 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
     let setup = conn.get_setup();
     let screen = setup.roots().nth(screen_num as usize).unwrap();
 
+
+    let cursor: x::Cursor = conn.generate_id();
+    let event_mask: x::EventMask;
+    event_mask = x::EventMask::empty();
+
+    // event_mask.NO_EVENT = true;
+    // let pointer = 
+
     // Generate an `Xid` for the client window.
     // The type inference is needed here.
     let window: x::Window = conn.generate_id();
     let buffer: x::Pixmap = conn.generate_id();
     let _gc: x::Gc = x::Gc::Foreground(screen.white_pixel());
+
+
+
     // gc = x::Gc::Function(x::Gx::And);
     let g_context: x::Gcontext = conn.generate_id();
 
@@ -147,7 +158,36 @@ fn create_win(name: &[u8]) -> xcb::Result<()> {
     let mut maximized = false;
     
     loop {
-        let button_size: i32 = 150;
+
+        let pointer_cookie = conn.send_request(&x::QueryPointer{window: window});
+        let pointer_pos = conn.wait_for_reply(pointer_cookie)?;
+        let pointer_x = pointer_pos.win_x();
+        let pointer_y = pointer_pos.win_y();
+
+        let new = geometry::Circle{
+            connection: &conn,
+            window: window,
+            gc: g_context,
+            x: pointer_x,
+            y: pointer_y,
+            radius: 10,
+            thickness: 2.0
+        };
+        new.draw();
+
+
+        let _pointer = x::GrabPointer{
+            owner_events: false,
+            grab_window: window,
+            event_mask: event_mask,
+            pointer_mode: x::GrabMode::Sync,
+            keyboard_mode: x::GrabMode::Sync,
+            confine_to: window,
+            cursor: cursor,
+            time: 0,
+        };
+
+        let button_size: i32 = size;
         let button_border: f32 = 3.0;
         for x in 0..3+1 {
             for y in 0..3+1 {
