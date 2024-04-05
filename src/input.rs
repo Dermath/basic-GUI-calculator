@@ -1,9 +1,5 @@
 // use xcb::x::*;
-
-// pub struct Cursor {
-//     x: i32,
-//     y: i32,
-// }
+// mod geometry;
 
 pub fn input(text: &str) -> String{
     println!("{text}");

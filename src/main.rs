@@ -168,8 +168,7 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
             connection: &conn,
             window: window,
             gc: g_context,
-            x: pointer_x,
-            y: pointer_y,
+            pos: geometry::Position{x: (pointer_x -11) as u16, y: (pointer_y -11) as u16},
             radius: 10,
             thickness: 2.0
         };
@@ -195,8 +194,7 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
                     connection: &conn,
                     window: window,
                     gc: g_context,
-                    x: x * button_size as i16 * 2,
-                    y: y * button_size as i16 * 2,
+                    pos: geometry::Position{x: (x*button_size*2) as u16, y: (y*button_size*2) as u16},
                     radius: button_size - button_border as i32,
                     thickness: button_border
                 }.draw();

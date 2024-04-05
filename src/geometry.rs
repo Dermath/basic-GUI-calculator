@@ -3,12 +3,17 @@ use xcb::{x};
 use xcb::VoidCookieChecked;
 
 #[derive(Clone)]
+pub struct Position {
+    pub x: u16,
+    pub y: u16
+}
+
+#[derive(Clone)]
 pub struct Circle<'a> {
     pub connection: &'a xcb::Connection,
     pub window: x::Window,
     pub gc: x::Gcontext,
-    pub x: i16,
-    pub y: i16,
+    pub pos: Position,
     pub radius: i32,
     pub thickness: f32
 }
@@ -26,7 +31,7 @@ impl<'a> Circle<'a> {
                 distance = (x as f32 - outer_radius).powf(2.0) + (y as f32 - outer_radius).powf(2.0);
 
                 if distance > in_sq && distance < out_sq {
-                    pixels.push(x::Point{x: x+self.x, y: y+self.y});
+                    pixels.push(x::Point{x: x+self.pos.x as i16, y: y+self.pos.y as i16});
                 }
             }
         }
