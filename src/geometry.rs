@@ -3,6 +3,14 @@ use xcb::{x};
 use xcb::VoidCookieChecked;
 
 #[derive(Clone)]
+pub struct Env<'a> {
+    pub conn: &'a xcb::Connection,
+    pub window: x::Window,
+    pub gc: x::Gcontext,
+    pub scale: u16,
+}
+
+#[derive(Clone, Copy)]
 pub struct Position {
     pub x: u16,
     pub y: u16
@@ -10,9 +18,7 @@ pub struct Position {
 
 #[derive(Clone)]
 pub struct Circle<'a> {
-    pub connection: &'a xcb::Connection,
-    pub window: x::Window,
-    pub gc: x::Gcontext,
+    pub env: &'a Env<'a>,
     pub pos: Position,
     pub radius: i32,
     pub thickness: f32
@@ -35,7 +41,7 @@ impl<'a> Circle<'a> {
                 }
             }
         }
-        return draw_pix(&pixels, self.connection, self.window, self.gc);
+        return draw_pix(&self.env, &pixels);
     }
 
     // pub fn shift(&'a mut self, x_shift_value: i16, y_shift_value: i16) {
@@ -44,11 +50,11 @@ impl<'a> Circle<'a> {
     // }
 }
 
-pub fn draw_pix<'a>(pixels: &Vec<x::Point>, connection: &'a xcb::Connection, window: x::Window, gc: x::Gcontext) -> VoidCookieChecked {
-    let addition = connection.send_request_checked(&x::PolyPoint {
+pub fn draw_pix<'a>(env: &Env, pixels: &Vec<x::Point>) -> VoidCookieChecked {
+    let addition = env.conn.send_request_checked(&x::PolyPoint {
         coordinate_mode: x::CoordMode::Origin,
-        drawable: x::Drawable::Window(window),
-        gc: gc,
+        drawable: x::Drawable::Window(env.window),
+        gc: env.gc,
         points: &pixels //.collect::<Vec<x::Point>>().as_slice(),
     });
     return addition;

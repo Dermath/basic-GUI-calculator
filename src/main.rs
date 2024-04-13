@@ -18,17 +18,18 @@ fn main() -> xcb::Result<()> {
 }
 
 fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
-    let scale: u16 = 120;
-
     // Connect to the X server.
     let (conn, screen_num) = xcb::Connection::connect(None)?;
+    let screen = conn.get_setup().roots().nth(screen_num as usize).unwrap();
 
-    // Fetch the `x::Setup` and get the main `x::Screen` object.
-    let setup = conn.get_setup();
-    let screen = setup.roots().nth(screen_num as usize).unwrap();
+    let env = geometry::Env {
+        conn: &conn,
+        window: conn.generate_id(),
+        gc: conn.generate_id(),
+        scale: 120,
+    };
 
-
-    let cursor: x::Cursor = conn.generate_id();
+    let cursor: x::Cursor = env.conn.generate_id();
     let event_mask: x::EventMask;
     event_mask = x::EventMask::empty();
 
@@ -55,8 +56,8 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
         parent: screen.root(),
         x: 0,
         y: 0,
-        width: 16 * scale,
-        height: 10 * scale,
+        width: 16 * env.scale,
+        height: 10 * env.scale,
         border_width: 0,
         class: x::WindowClass::InputOutput,
         visual: screen.root_visual(),
@@ -72,8 +73,8 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
         depth: 0,
         pid: buffer,
         drawable: x::Drawable::Pixmap(buffer),
-        width: 16 * scale,
-        height: 10 * scale,
+        width: 16 * env.scale,
+        height: 10 * env.scale,
     });
 
     let gc_cookie = conn.send_request_checked(&x::CreateGc {
@@ -158,17 +159,13 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     let mut maximized = false;
     
     loop {
-
-        let pointer_cookie = conn.send_request(&x::QueryPointer{window: window});
-        let pointer_pos = conn.wait_for_reply(pointer_cookie)?;
-        let pointer_x = pointer_pos.win_x();
-        let pointer_y = pointer_pos.win_y();
+        let mut pointer = env.pointer_pos()?;
+        pointer.x -= 11;
+        pointer.y -= 11;
 
         let new = geometry::Circle{
-            connection: &conn,
-            window: window,
-            gc: g_context,
-            pos: geometry::Position{x: (pointer_x -11) as u16, y: (pointer_y -11) as u16},
+            env: &env,
+            pos: pointer,
             radius: 10,
             thickness: 2.0
         };
@@ -191,9 +188,7 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
         for x in 0..3+1 {
             for y in 0..3+1 {
                 let addition = geometry::Circle{
-                    connection: &conn,
-                    window: window,
-                    gc: g_context,
+                    env: &env,
                     pos: geometry::Position{x: (x*button_size*2) as u16, y: (y*button_size*2) as u16},
                     radius: button_size - button_border as i32,
                     thickness: button_border
