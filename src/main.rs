@@ -38,21 +38,14 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
 
     // Generate an `Xid` for the client window.
     // The type inference is needed here.
-    let window: x::Window = conn.generate_id();
-    let buffer: x::Pixmap = conn.generate_id();
     let _gc: x::Gc = x::Gc::Foreground(screen.white_pixel());
-
-
-
-    // gc = x::Gc::Function(x::Gx::And);
-    let g_context: x::Gcontext = conn.generate_id();
 
     // We can now create a window. For this we pass a `Request`
     // object to the `send_request_checked` method. The method
     // returns a cookie that will be used to check for success.
     let cookie = conn.send_request_checked(&x::CreateWindow {
         depth: x::COPY_FROM_PARENT as u8,
-        wid: window,
+        wid: env.window,
         parent: screen.root(),
         x: 0,
         y: 0,
@@ -69,17 +62,9 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     });
     conn.check_request(cookie)?;
 
-    let _buff_cookie = conn.send_request_checked(&x::CreatePixmap {
-        depth: 0,
-        pid: buffer,
-        drawable: x::Drawable::Pixmap(buffer),
-        width: 16 * env.scale,
-        height: 10 * env.scale,
-    });
-
     let gc_cookie = conn.send_request_checked(&x::CreateGc {
-        cid: g_context,
-        drawable: x::Drawable::Window(window),
+        cid: env.gc,
+        drawable: x::Drawable::Window(env.window),
         value_list: &[
             x::Gc::Foreground(screen.white_pixel()),
             x::Gc::GraphicsExposures(false),
@@ -94,7 +79,7 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     // Let's change the window title
     let _cookie = conn.send_request_checked(&x::ChangeProperty {
         mode: x::PropMode::Replace,
-        window,
+        window: env.window,
         property: x::ATOM_WM_NAME,
         r#type: x::ATOM_STRING,
         data: name,
@@ -105,7 +90,7 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     // We now show ("map" in X terminology) the window.
     // This time we do not check for success, so we discard the cookie.
     conn.send_request(&x::MapWindow {
-        window,
+        window: env.window,
     });
 
     // We send a few requests in a row and wait for the replies after.
@@ -146,7 +131,7 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     // but the event loop is notified through a connection shutdown error.
     conn.check_request(conn.send_request_checked(&x::ChangeProperty {
         mode: x::PropMode::Replace,
-        window,
+        window: env.window,
         property: wm_protocols,
         r#type: x::ATOM_ATOM,
         data: &[wm_del_window],
@@ -174,11 +159,11 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
 
         let _pointer = x::GrabPointer{
             owner_events: false,
-            grab_window: window,
+            grab_window: env.window,
             event_mask: event_mask,
             pointer_mode: x::GrabMode::Sync,
             keyboard_mode: x::GrabMode::Sync,
-            confine_to: window,
+            confine_to: env.window,
             cursor: cursor,
             time: 0,
         };
@@ -215,7 +200,7 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
                         0,
                         0,
                     ]);
-                    let event = x::ClientMessageEvent::new(window, wm_state, data);
+                    let event = x::ClientMessageEvent::new(env.window, wm_state, data);
                     let cookie = conn.send_request_checked(&x::SendEvent {
                         propagate: false,
                         destination: x::SendEventDest::Window(screen.root()),
