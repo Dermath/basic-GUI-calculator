@@ -38,7 +38,6 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
 
     // Generate an `Xid` for the client window.
     // The type inference is needed here.
-    let _gc: x::Gc = x::Gc::Foreground(screen.white_pixel());
 
     // We can now create a window. For this we pass a `Request`
     // object to the `send_request_checked` method. The method
@@ -76,22 +75,49 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     // A cookie can't be cloned; it is moved to the function.
     // conn.check_request(cookie)?;
 
-    // Let's change the window title
-    let _cookie = conn.send_request_checked(&x::ChangeProperty {
-        mode: x::PropMode::Replace,
-        window: env.window,
-        property: x::ATOM_WM_NAME,
-        r#type: x::ATOM_STRING,
-        data: name,
-    });
-    // And check for success again
-    conn.check_request(_cookie)?;
-
     // We now show ("map" in X terminology) the window.
     // This time we do not check for success, so we discard the cookie.
     conn.send_request(&x::MapWindow {
         window: env.window,
     });
+
+    let button_size: i16 = size as i16;
+    let base_button = geometry::Button {
+        env: env,
+        pos: geometry::Position{x: 0, y: 0},
+        shape: geometry::Shape::Rect( geometry::Rect {
+            env: &env,
+            width: (size - 3) as i16,
+            height: (size - 3) as i16,
+            thickness: 3.0
+        }),
+        text: "test button",
+        tag: logic::Tag::Test,
+    };
+    let mut buttons: Vec<geometry::Button> = vec!(base_button; 16);
+    for x in 0..15+1 {
+        let y = x/4;
+        buttons[x].pos = geometry::Position{x: ((x%4) as i16)*button_size, y: (y as i16)*button_size};
+        buttons[x].tag = match x {
+            0 => logic::Tag::Test,
+            1 => logic::Tag::Test,
+            2 => logic::Tag::Test,
+            3 => logic::Tag::Test,
+            4 => logic::Tag::Test,
+            5 => logic::Tag::Test,
+            6 => logic::Tag::Test,
+            7 => logic::Tag::Test,
+            8 => logic::Tag::Test,
+            9 => logic::Tag::Test,
+            10 => logic::Tag::Test,
+            11 => logic::Tag::Test,
+            12 => logic::Tag::Test,
+            13 => logic::Tag::Test,
+            14 => logic::Tag::Test,
+            15 => logic::Tag::Test,
+            _ => logic ::Tag::Error,
+        }
+    }
 
     // We send a few requests in a row and wait for the replies after.
     let (wm_protocols, wm_del_window, wm_state, wm_state_maxv, wm_state_maxh) = {
@@ -129,58 +155,36 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     // We now activate the window close event by sending the following request.
     // If we don't do this we can still close the window by clicking on the "x" button,
     // but the event loop is notified through a connection shutdown error.
-    conn.check_request(conn.send_request_checked(&x::ChangeProperty {
-        mode: x::PropMode::Replace,
-        window: env.window,
-        property: wm_protocols,
-        r#type: x::ATOM_ATOM,
-        data: &[wm_del_window],
-    }))?;
+    //conn.check_request(conn.send_request_checked(&x::ChangeProperty {
+    //    mode: x::PropMode::Replace,
+    //    window: env.window,
+    //    property: wm_protocols,
+    //    r#type: x::ATOM_ATOM,
+    //    data: &[wm_del_window],
+    //}))?;
 
     // Previous request was checked, so a flush is not necessary in this case.
     // Otherwise, here is how to perform a connection flush.
-    conn.flush()?;
+    //conn.flush()?;
 
     let mut maximized = false;
     
     loop {
-        let mut pointer = env.pointer_pos()?;
-        pointer.x -= 11;
-        pointer.y -= 11;
-
-        let new = geometry::Circle{
-            env: &env,
-            pos: pointer,
-            radius: 10,
-            thickness: 2.0
-        };
-        new.draw();
-
-
-        let _pointer = x::GrabPointer{
-            owner_events: false,
-            grab_window: env.window,
-            event_mask: event_mask,
-            pointer_mode: x::GrabMode::Sync,
-            keyboard_mode: x::GrabMode::Sync,
-            confine_to: env.window,
-            cursor: cursor,
-            time: 0,
-        };
-
-        let button_size: i32 = size;
-        let button_border: f32 = 3.0;
-        for x in 0..3+1 {
-            for y in 0..3+1 {
-                let addition = geometry::Circle{
-                    env: &env,
-                    pos: geometry::Position{x: (x*button_size*2) as u16, y: (y*button_size*2) as u16},
-                    radius: button_size - button_border as i32,
-                    thickness: button_border
-                }.draw();
-                conn.check_request(addition)?;
-            }
+        for i in geometry::update(&buttons)?.iter() {
+            i.click_action()
         }
+
+        // let _pointer = x::GrabPointer{
+        //     owner_events: false,
+        //     grab_window: env.window,
+        //     event_mask: event_mask,
+        //     pointer_mode: x::GrabMode::Sync,
+        //     keyboard_mode: x::GrabMode::Sync,
+        //     confine_to: env.window,
+        //     cursor: cursor,
+        //     time: 0,
+        // };
+        
         
        match conn.wait_for_event()? {
             xcb::Event::X(x::Event::KeyPress(ev)) => {

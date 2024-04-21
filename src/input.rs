@@ -1,5 +1,3 @@
-use xcb::{x};
-
 pub fn input(text: &str) -> String{
     println!("{text}");
     
