@@ -10,14 +10,6 @@ mod logic;
 
 // Many xcb functions return a `xcb::Result` or compatible result.
 fn main() -> xcb::Result<()> {
-    let mut name = input::input("what would you like to name your window? ");
-    name.remove(name.len() - 1);
-    let num = input::input_num("how large would you like to make the radius of your circles? ");
-
-    return create_win(&name.as_bytes(), num);
-}
-
-fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     // Connect to the X server.
     let (conn, screen_num) = xcb::Connection::connect(None)?;
     let screen = conn.get_setup().roots().nth(screen_num as usize).unwrap();
@@ -61,6 +53,16 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
     });
     conn.check_request(cookie)?;
 
+    let cookie = conn.send_request_checked(&x::ChangeProperty {
+        mode: x::PropMode::Replace,
+        window: env.window,
+        property: x::ATOM_WM_NAME,
+        r#type: x::ATOM_STRING,
+        data: "Calculator".as_bytes(),
+    });
+    // And check for success again
+    conn.check_request(cookie)?;
+
     let gc_cookie = conn.send_request_checked(&x::CreateGc {
         cid: env.gc,
         drawable: x::Drawable::Window(env.window),
@@ -81,14 +83,14 @@ fn create_win(name: &[u8], size: i32) -> xcb::Result<()> {
         window: env.window,
     });
 
-    let button_size: i16 = size as i16;
+    let button_size: i16 = 300;
     let base_button = geometry::Button {
         env: env,
         pos: geometry::Position{x: 0, y: 0},
         shape: geometry::Shape::Rect( geometry::Rect {
             env: &env,
-            width: (size - 3) as i16,
-            height: (size - 3) as i16,
+            width: (button_size - 3) as i16,
+            height: (button_size - 3) as i16,
             thickness: 3.0
         }),
         text: "test button",

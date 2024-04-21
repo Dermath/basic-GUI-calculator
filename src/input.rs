@@ -1,4 +1,4 @@
-pub fn input(text: &str) -> String{
+pub fn _input(text: &str) -> String{
     println!("{text}");
     
     let mut input = String::new();
