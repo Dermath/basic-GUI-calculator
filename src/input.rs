@@ -6,7 +6,7 @@ pub fn _input(text: &str) -> String{
     return input;
 }
 
-pub fn input_num(text: &str) -> i32{
+pub fn _input_num(text: &str) -> i32{
     println!("{text}");
     
     let mut input = String::new();

@@ -1,7 +1,10 @@
 #[derive(Debug, Clone, Copy)]
 pub enum Tag {
-    Test,
     Error,
+    Test,
+    Num(u8),
+    Op(Operation),
+    Eq,
     Clear,
 }
 
@@ -37,6 +40,7 @@ impl Tag {
     pub fn click_action(&self) {
         match self {
             Tag::Test => test(),
+            Tag::Num(inner) => num(inner),
             _ => (),
         }
     }
@@ -44,4 +48,8 @@ impl Tag {
 
 fn test() {
     println!("TESTING BUTTON");
+}
+
+fn num(num: &u8) {
+    println!("{}", num);
 }

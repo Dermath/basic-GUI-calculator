@@ -21,9 +21,15 @@ fn main() -> xcb::Result<()> {
         scale: 120,
     };
 
-    let cursor: x::Cursor = env.conn.generate_id();
-    let event_mask: x::EventMask;
-    event_mask = x::EventMask::empty();
+    let font = conn.generate_id();
+    conn.check_request(conn.send_request_checked(&x::OpenFont{
+        fid: font,
+        name: b"rk24",
+    }))?;
+
+    let _cursor: x::Cursor = env.conn.generate_id();
+    let _event_mask: x::EventMask;
+    _event_mask = x::EventMask::empty();
 
     // event_mask.NO_EVENT = true;
     // let pointer = 
@@ -58,7 +64,7 @@ fn main() -> xcb::Result<()> {
         window: env.window,
         property: x::ATOM_WM_NAME,
         r#type: x::ATOM_STRING,
-        data: "Calculator".as_bytes(),
+        data: b"Calculator",
     });
     // And check for success again
     conn.check_request(cookie)?;
@@ -68,10 +74,13 @@ fn main() -> xcb::Result<()> {
         drawable: x::Drawable::Window(env.window),
         value_list: &[
             x::Gc::Foreground(screen.white_pixel()),
-            x::Gc::GraphicsExposures(false),
+            x::Gc::Font(font),
         ],
     });
     conn.check_request(gc_cookie)?;
+    conn.send_request(&x::CloseFont{
+        font: font,
+    });
 
     // We now check if the window creation worked.
     // A cookie can't be cloned; it is moved to the function.
@@ -101,24 +110,44 @@ fn main() -> xcb::Result<()> {
         let y = x/4;
         buttons[x].pos = geometry::Position{x: ((x%4) as i16)*button_size, y: (y as i16)*button_size};
         buttons[x].tag = match x {
-            0 => logic::Tag::Test,
-            1 => logic::Tag::Test,
-            2 => logic::Tag::Test,
-            3 => logic::Tag::Test,
-            4 => logic::Tag::Test,
-            5 => logic::Tag::Test,
-            6 => logic::Tag::Test,
-            7 => logic::Tag::Test,
-            8 => logic::Tag::Test,
-            9 => logic::Tag::Test,
-            10 => logic::Tag::Test,
-            11 => logic::Tag::Test,
-            12 => logic::Tag::Test,
-            13 => logic::Tag::Test,
-            14 => logic::Tag::Test,
-            15 => logic::Tag::Test,
+            0 => logic::Tag::Num(7),
+            1 => logic::Tag::Num(8),
+            2 => logic::Tag::Num(9),
+            3 => logic::Tag::Op(logic::Operation::Addition),
+            4 => logic::Tag::Num(4),
+            5 => logic::Tag::Num(5),
+            6 => logic::Tag::Num(6),
+            7 => logic::Tag::Op(logic::Operation::Subtraction),
+            8 => logic::Tag::Num(1),
+            9 => logic::Tag::Num(2),
+            10 => logic::Tag::Num(3),
+            11 => logic::Tag::Op(logic::Operation::Multiplication),
+            12 => logic::Tag::Clear,
+            13 => logic::Tag::Num(0),
+            14 => logic::Tag::Error,
+            15 => logic::Tag::Op(logic::Operation::Division),
             _ => logic ::Tag::Error,
-        }
+        };
+
+        buttons[x].text = match x {
+            0 => "7",
+            1 => "8",
+            2 => "9",
+            3 => "+",
+            4 => "4",
+            5 => "5",
+            6 => "6",
+            7 => "-",
+            8 => "1",
+            9 => "2",
+            10 => "3",
+            11 => "x",
+            12 => "Clear",
+            13 => "0",
+            14 => "=",
+            15 => "/",
+            _ => "",
+        };
     }
 
     // We send a few requests in a row and wait for the replies after.

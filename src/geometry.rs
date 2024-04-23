@@ -1,3 +1,4 @@
+use std::fs;
 use xcb::{x};
 // we need to import the `Xid` trait for the `resource_id` call down there.
 use xcb::VoidCookieChecked;
@@ -29,8 +30,7 @@ pub struct Env<'a> {
 #[derive(Clone, Copy)]
 pub struct Position {
     pub x: i16,
-    pub y: i16
-}
+    pub y: i16 }
 
 #[derive(Clone, Copy)]
 pub struct Circle<'a> {
@@ -66,7 +66,12 @@ impl<'a> Circle<'a> {
         }
         return draw_pix(&self.env, &pixels);
     }
-
+    pub fn center(&'a self) -> Position {
+        Position{
+            x: self.radius/2,
+            y: self.radius/2,
+        }
+    }
     pub fn check_inside(&'a self, pos: Position, check_pos: Position) -> bool {
         let center = Position{x: pos.x + self.radius, y: pos.y + self.radius};
         let distance = (center.x - check_pos.x).pow(2) + (center.y - check_pos.y).pow(2);
@@ -81,16 +86,16 @@ impl<'a> Rect<'a> {
     pub fn draw(&'a self, pos: Position) -> VoidCookieChecked {
         let mut pixels: Vec<x::Point> = vec![];
 
-        for x in 1..=self.width {
-            for y in 1..=self.thickness as i16 {
+        for x in 0..=self.width {
+            for y in 0..=self.thickness as i16 {
                 pixels.push(x::Point{x: x+pos.x, y: y+pos.y})
             }
             for y in (self.height - self.thickness as i16)..=self.height {
                 pixels.push(x::Point{x: x+pos.x, y: y+pos.y})
             }
         }
-        for y in 1..=self.height {
-            for x in 1..=self.thickness as i16 {
+        for y in 0..=self.height {
+            for x in 0..=self.thickness as i16 {
                 pixels.push(x::Point{x: x+pos.x, y: y+pos.y})
             }
             for x in (self.width - self.thickness as i16)..=self.width {
@@ -99,7 +104,12 @@ impl<'a> Rect<'a> {
         }
         return draw_pix(&self.env, &pixels);
     }
-
+    pub fn center(&'a self) -> Position {
+        Position{
+            x: self.width/2,
+            y: self.height/2,
+        }
+    }
     pub fn check_inside(&'a self, pos: Position, check_pos: Position) -> bool {
         if pos.x <= check_pos.x && pos.x + self.width >= check_pos.x
         && pos.y <= check_pos.y && pos.y + self.height >= check_pos.y {
@@ -116,6 +126,12 @@ impl<'a> Shape<'a> {
             Shape::Rect(inner) => inner.draw(pos),
         }
     }
+    pub fn center(&'a self) -> Position {
+        match self{
+            Shape::Circle(inner) => inner.center(),
+            Shape::Rect(inner) => inner.center(),
+        }
+    }
     pub fn check_inside(&'a self, pos: Position, check_pos: Position) -> bool {
         return match self {
             Shape::Circle(inner) => inner.check_inside(pos, check_pos),
@@ -126,7 +142,12 @@ impl<'a> Shape<'a> {
 
 impl<'a, 'b> Button<'a, 'b> {
     pub fn draw(&'a self) -> VoidCookieChecked {
-        self.shape.draw(self.pos)
+        self.shape.draw(self.pos);
+        let pos = Position {
+            x: self.shape.center().x + self.pos.x,
+            y: self.shape.center().y + self.pos.y,
+        };
+        render_text(&self.env, pos, self.text)
     }
     pub fn check(&'a self) -> Result<bool, xcb::Error> {
         let click = match self.shape{
@@ -172,3 +193,13 @@ pub fn update(buttons: &Vec<Button>) -> Result<Vec<logic::Tag>, xcb::Error> {
         return Ok(tags);
 }
 
+fn render_text(env: &Env, pos: Position, text: &str) -> VoidCookieChecked {
+    let text = text.as_bytes();
+    env.conn.send_request_checked(&x::ImageText8{
+        drawable: x::Drawable::Window(env.window),
+        gc: env.gc,
+        x: pos.x,
+        y: pos.y,
+        string: text,
+    })
+}
