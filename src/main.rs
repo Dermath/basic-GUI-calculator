@@ -124,7 +124,7 @@ fn main() -> xcb::Result<()> {
             11 => logic::Tag::Op(logic::Operation::Multiplication),
             12 => logic::Tag::Clear,
             13 => logic::Tag::Num(0),
-            14 => logic::Tag::Error,
+            14 => logic::Tag::Eq,
             15 => logic::Tag::Op(logic::Operation::Division),
             _ => logic ::Tag::Error,
         };
