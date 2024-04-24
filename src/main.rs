@@ -10,6 +10,13 @@ mod logic;
 
 // Many xcb functions return a `xcb::Result` or compatible result.
 fn main() -> xcb::Result<()> {
+
+    let mut backend = logic::Backend {
+        new: true,
+        num1: 0,
+        num2: 0,
+        operation: logic::Operation::Inactive,
+    };
     // Connect to the X server.
     let (conn, screen_num) = xcb::Connection::connect(None)?;
     let screen = conn.get_setup().roots().nth(screen_num as usize).unwrap();
@@ -93,6 +100,19 @@ fn main() -> xcb::Result<()> {
     });
 
     let button_size: i16 = 300;
+
+    let mut output_box = geometry::Panel {
+        env: env,
+        pos: geometry::Position {x: button_size * 4, y: 0},
+        shape: geometry::Shape::Rect( geometry::Rect {
+            env: &env,
+            width: 700,
+            height: 1200,
+            thickness: 15.0
+        }),
+        text: "0".to_string(),
+    };
+
     let base_button = geometry::Button {
         env: env,
         pos: geometry::Position{x: 0, y: 0},
@@ -202,8 +222,11 @@ fn main() -> xcb::Result<()> {
     
     loop {
         for i in geometry::update(&buttons)?.iter() {
-            i.click_action()
+            i.click_action(&mut backend)
         }
+        output_box.update(&backend);
+        // eprintln!("process: {}", output_box.text);
+        conn.check_request(output_box.draw())?;
 
         // let _pointer = x::GrabPointer{
         //     owner_events: false,

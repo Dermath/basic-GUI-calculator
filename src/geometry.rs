@@ -1,4 +1,3 @@
-use std::fs;
 use xcb::{x};
 // we need to import the `Xid` trait for the `resource_id` call down there.
 use xcb::VoidCookieChecked;
@@ -11,6 +10,13 @@ pub struct Button<'a, 'b> {
     pub shape: Shape<'a>,
     pub text: &'b str,
     pub tag: logic::Tag
+}
+
+pub struct Panel<'a> {
+    pub env: Env<'a>,
+    pub pos: Position,
+    pub shape: Shape<'a>,
+    pub text: String,
 }
 
 #[derive(Clone, Copy)]
@@ -66,6 +72,15 @@ impl<'a> Circle<'a> {
         }
         return draw_pix(&self.env, &pixels);
     }
+    pub fn wipe(&'a self, pos: Position) -> VoidCookieChecked {
+        let area = Rect {
+            env: self.env,
+            width: self.radius,
+            height: self.radius,
+            thickness: 0.0,
+        };
+        wipe(pos, &area)
+    }
     pub fn center(&'a self) -> Position {
         Position{
             x: self.radius/2,
@@ -104,7 +119,9 @@ impl<'a> Rect<'a> {
         }
         return draw_pix(&self.env, &pixels);
     }
-    pub fn center(&'a self) -> Position {
+    pub fn wipe(&'a self, pos: Position) -> VoidCookieChecked {
+        wipe(pos, self)
+    }    pub fn center(&'a self) -> Position {
         Position{
             x: self.width/2,
             y: self.height/2,
@@ -125,6 +142,12 @@ impl<'a> Shape<'a> {
             Shape::Circle(inner) => inner.draw(pos),
             Shape::Rect(inner) => inner.draw(pos),
         }
+    }
+    pub fn wipe(&'a self, pos: Position) -> VoidCookieChecked{
+        return match self {
+            Shape::Circle(inner) => inner.wipe(pos),
+            Shape::Rect(inner) => inner.wipe(pos),
+        };
     }
     pub fn center(&'a self) -> Position {
         match self{
@@ -149,6 +172,9 @@ impl<'a, 'b> Button<'a, 'b> {
         };
         render_text(&self.env, pos, self.text)
     }
+    pub fn wipe(&'a self) -> VoidCookieChecked {
+        self.shape.wipe(self.pos)
+    }
     pub fn check(&'a self) -> Result<bool, xcb::Error> {
         let click = match self.shape{
             Shape::Circle(inner) => inner.env,
@@ -156,7 +182,27 @@ impl<'a, 'b> Button<'a, 'b> {
         }.pointer_pos()?;
         Ok(self.shape.check_inside(self.pos, click))
     }
-} 
+}
+
+impl<'a> Panel<'a> {
+    pub fn draw(&'a self) -> VoidCookieChecked {
+        self.wipe();
+        self.shape.draw(self.pos);
+        let pos = Position {
+            x: self.shape.center().x + self.pos.x,
+            y: self.shape.center().y + self.pos.y,
+        };
+        // eprintln!("in draw funtion: {}", self.text);
+        render_text(&self.env, pos, &self.text)
+    }
+    pub fn wipe(&'a self) -> VoidCookieChecked {
+        self.shape.wipe(self.pos)
+    }
+    pub fn update(&mut self, backend: &logic::Backend) {
+        self.text = backend.num2.to_string();
+        // eprintln!("active: {}", backend.num2.to_string());
+    }
+}
 
 impl <'a> Env <'a> {
     pub fn pointer_pos(&self) -> Result<Position, xcb::Error> {
@@ -179,6 +225,19 @@ pub fn draw_pix<'a>(env: &Env, pixels: &Vec<x::Point>) -> VoidCookieChecked {
     return addition;
 }
 
+pub fn wipe<'a>(pos: Position, rect: &'a Rect) -> VoidCookieChecked {
+    let clear = x::ClearArea {
+        exposures: false,
+        window: rect.env.window,
+        x: pos.x,
+        y: pos.y,
+        width: rect.width as u16,
+        height: rect.height as u16,
+    };
+
+    rect.env.conn.send_request_checked(&clear)
+}
+
 pub fn update(buttons: &Vec<Button>) -> Result<Vec<logic::Tag>, xcb::Error> {
     let mut tags: Vec<logic::Tag> = vec!();
 
@@ -186,15 +245,19 @@ pub fn update(buttons: &Vec<Button>) -> Result<Vec<logic::Tag>, xcb::Error> {
         match i.check()? {
             true => tags.push(i.tag),
             false => ()
-        }
+        };
+        let cleared = i.wipe();
+        i.env.conn.check_request(cleared)?;
         let drawn = i.draw();
         i.env.conn.check_request(drawn)?;
     }
-        return Ok(tags);
+    return Ok(tags);
 }
 
 fn render_text(env: &Env, pos: Position, text: &str) -> VoidCookieChecked {
+    // eprintln!("before {}", text);
     let text = text.as_bytes();
+    // eprintln!("after: {}", text);
     env.conn.send_request_checked(&x::ImageText8{
         drawable: x::Drawable::Window(env.window),
         gc: env.gc,
