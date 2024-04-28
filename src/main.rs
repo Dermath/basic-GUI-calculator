@@ -125,6 +125,12 @@ fn main() -> xcb::Result<()> {
         text: "test button",
         tag: logic::Tag::Test,
     };
+    let base_circle = geometry::Shape::Circle( geometry::Circle {
+            env: &env,
+            radius: ((button_size/2) - 3) as i16,
+            thickness: 3.0
+        });
+
     let mut buttons: Vec<geometry::Button> = vec!(base_button; 16);
     for x in 0..15+1 {
         let y = x/4;
@@ -148,7 +154,19 @@ fn main() -> xcb::Result<()> {
             15 => logic::Tag::Op(logic::Operation::Division),
             _ => logic ::Tag::Error,
         };
-
+        buttons[x].shape = match x {
+            0 => base_circle,
+            1 => base_circle,
+            2 => base_circle,
+            4 => base_circle,
+            5 => base_circle,
+            6 => base_circle,
+            8 => base_circle,
+            9 => base_circle,
+            10 => base_circle,
+            13 => base_circle,
+            _ => buttons[x].shape,
+        };
         buttons[x].text = match x {
             0 => "7",
             1 => "8",
@@ -171,36 +189,12 @@ fn main() -> xcb::Result<()> {
     }
 
     // We send a few requests in a row and wait for the replies after.
-    let (wm_protocols, wm_del_window, wm_state, wm_state_maxv, wm_state_maxh) = {
-        let cookies = (
-            conn.send_request(&x::InternAtom {
-                only_if_exists: true,
-                name: b"WM_PROTOCOLS",
-            }),
-            conn.send_request(&x::InternAtom {
+    let wm_del_window = {
+        let cookie = conn.send_request(&x::InternAtom {
                 only_if_exists: true,
                 name: b"WM_DELETE_WINDOW",
-            }),
-            conn.send_request(&x::InternAtom {
-                only_if_exists: true,
-                name: b"_NET_WM_STATE",
-            }),
-            conn.send_request(&x::InternAtom {
-                only_if_exists: true,
-                name: b"_NET_WM_STATE_MAXIMIZED_VERT",
-            }),
-            conn.send_request(&x::InternAtom {
-                only_if_exists: true,
-                name: b"_NET_WM_STATE_MAXIMIZED_HORZ",
-            }),
-        );
-        (
-            conn.wait_for_reply(cookies.0)?.atom(),
-            conn.wait_for_reply(cookies.1)?.atom(),
-            conn.wait_for_reply(cookies.2)?.atom(),
-            conn.wait_for_reply(cookies.3)?.atom(),
-            conn.wait_for_reply(cookies.4)?.atom(),
-        )
+            });
+            conn.wait_for_reply(cookie)?.atom()
     };
 
     // We now activate the window close event by sending the following request.
@@ -217,66 +211,28 @@ fn main() -> xcb::Result<()> {
     // Previous request was checked, so a flush is not necessary in this case.
     // Otherwise, here is how to perform a connection flush.
     //conn.flush()?;
-
-    let mut maximized = false;
     
     loop {
-        for i in geometry::update(&buttons)?.iter() {
-            i.click_action(&mut backend)
+        for i in buttons.iter() {
+            let drawn = i.draw();
+            i.env.conn.check_request(drawn)?;
         }
         output_box.update(&backend);
         // eprintln!("process: {}", output_box.text);
         conn.check_request(output_box.draw())?;
 
-        // let _pointer = x::GrabPointer{
-        //     owner_events: false,
-        //     grab_window: env.window,
-        //     event_mask: event_mask,
-        //     pointer_mode: x::GrabMode::Sync,
-        //     keyboard_mode: x::GrabMode::Sync,
-        //     confine_to: env.window,
-        //     cursor: cursor,
-        //     time: 0,
-        // };
-        
-        
-       match conn.wait_for_event()? {
+        match conn.wait_for_event()? {
             xcb::Event::X(x::Event::KeyPress(ev)) => {
-                if ev.detail() == 0x3a {
-                    // The M key was pressed
-                    // (M only on qwerty keyboards. Keymap support is done
-                    // with the `xkb` extension and the `xkbcommon-rs` crate)
-
-                    // We toggle maximized state, for this we send a message
-                    // by building a `x::ClientMessageEvent` with the proper
-                    // atoms and send it to the server.
-
-                    let data = x::ClientMessageData::Data32([
-                        if maximized { 0 } else { 1 },
-                        wm_state_maxv.resource_id(),
-                        wm_state_maxh.resource_id(),
-                        0,
-                        0,
-                    ]);
-                    let event = x::ClientMessageEvent::new(env.window, wm_state, data);
-                    let cookie = conn.send_request_checked(&x::SendEvent {
-                        propagate: false,
-                        destination: x::SendEventDest::Window(screen.root()),
-                        event_mask: x::EventMask::STRUCTURE_NOTIFY,
-                        event: &event,
-                    });
-                    conn.check_request(cookie)?;
-
-                    // Same as before, if we don't check for error, we have to flush
-                    // the connection.
-                    // conn.flush()?;
-
-                    maximized = !maximized;
-                } else if ev.detail() == 0x18 {
+                if ev.detail() == 0x18 {
                     // Q (on qwerty)
 
                     // We exit the event loop (and the program)
                     break Ok(());
+                }
+                else if ev.detail() == 0x40 {
+                    for i in geometry::update(&buttons)?.iter() {
+                        i.click_action(&mut backend)
+                    }
                 }
             }
             xcb::Event::X(x::Event::ClientMessage(ev)) => {
@@ -290,7 +246,7 @@ fn main() -> xcb::Result<()> {
                     }
                 }
             }
-            _ => {}
+           _ => {}
         }
     }
     // return Ok(0);

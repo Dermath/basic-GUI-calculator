@@ -83,14 +83,15 @@ impl<'a> Circle<'a> {
     }
     pub fn center(&'a self) -> Position {
         Position{
-            x: self.radius/2,
-            y: self.radius/2,
+            x: self.radius,
+            y: self.radius,
         }
     }
     pub fn check_inside(&'a self, pos: Position, check_pos: Position) -> bool {
         let center = Position{x: pos.x + self.radius, y: pos.y + self.radius};
-        let distance = (center.x - check_pos.x).pow(2) + (center.y - check_pos.y).pow(2);
-        if distance.pow(1/2) <= self.radius {
+        let distance = ((center.x - check_pos.x) as i32).pow(2) + 
+            ((center.y - check_pos.y) as i32).pow(2);
+        if (distance as f64).sqrt() <= self.radius.into() {
             return true;
         }
         else {return false};
@@ -121,7 +122,8 @@ impl<'a> Rect<'a> {
     }
     pub fn wipe(&'a self, pos: Position) -> VoidCookieChecked {
         wipe(pos, self)
-    }    pub fn center(&'a self) -> Position {
+    }    
+    pub fn center(&'a self) -> Position {
         Position{
             x: self.width/2,
             y: self.height/2,
@@ -176,10 +178,7 @@ impl<'a, 'b> Button<'a, 'b> {
         self.shape.wipe(self.pos)
     }
     pub fn check(&'a self) -> Result<bool, xcb::Error> {
-        let click = match self.shape{
-            Shape::Circle(inner) => inner.env,
-            Shape::Rect(inner) => inner.env
-        }.pointer_pos()?;
+        let click = self.env.pointer_pos()?;
         Ok(self.shape.check_inside(self.pos, click))
     }
 }
@@ -248,8 +247,6 @@ pub fn update(buttons: &Vec<Button>) -> Result<Vec<logic::Tag>, xcb::Error> {
         };
         let cleared = i.wipe();
         i.env.conn.check_request(cleared)?;
-        let drawn = i.draw();
-        i.env.conn.check_request(drawn)?;
     }
     return Ok(tags);
 }
